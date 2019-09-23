@@ -26,6 +26,7 @@ object ConsumerGroupCollector {
   sealed trait Stop extends Message
   final case object Stop extends Stop
   final case class StopWithError(throwable: Throwable) extends Message
+  final case class MetaData(pollTime: Long) extends Message
   final case class OffsetsSnapshot(
                                      timestamp: Long,
                                      groups: List[String],
@@ -126,6 +127,7 @@ object ConsumerGroupCollector {
 
         context.log.info("Collecting offsets")
 
+        val startPollingTime = config.clock.instant().toEpochMilli
         val f = for {
           (groups, groupTopicPartitions) <- client.getGroups()
           offsetSnapshot <- getOffsetSnapshot(groups, groupTopicPartitions)
@@ -133,6 +135,9 @@ object ConsumerGroupCollector {
 
         f.onComplete {
           case Success(newOffsets) =>
+            val endPollingTime = config.clock.instant().toEpochMilli
+            val pollTime = (endPollingTime - startPollingTime)
+            context.self ! MetaData(pollTime)
             context.self ! newOffsets
           case Failure(t) =>
             context.self ! StopWithError(t)
@@ -164,6 +169,14 @@ object ConsumerGroupCollector {
         )
 
         collector(config, client, reporter, newState)
+
+      case (context, metaData: MetaData) =>
+        context.log.debug("Received Meta data:\n{}", metaData)
+
+        context.log.info("Reporting offsets")
+        reportPollTimeMetrics(config, reporter, metaData)
+        Behaviors.same
+
       case (context, _: Stop) =>
         state.scheduledCollect.cancel()
         Behaviors.stopped { () =>
@@ -254,5 +267,13 @@ object ConsumerGroupCollector {
         reporter ! Metrics.GroupPartitionRemoveMetricMessage(Metrics.TimeLagMetric, config.cluster.name, gtp)
       }
     }
+  }
+
+  private def reportPollTimeMetrics(
+                                     config: CollectorConfig,
+                                     reporter: ActorRef[MetricsSink.Message],
+                                     metaData: MetaData
+                                   ): Unit = {
+  reporter ! Metrics.ClusterValueMessage(Metrics.PollTimeMetric, config.cluster.name, metaData.pollTime)
   }
 }

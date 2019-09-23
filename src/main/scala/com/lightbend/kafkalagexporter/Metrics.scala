@@ -54,6 +54,18 @@ object Metrics {
   final case class GroupPartitionValueMessage(definition: GaugeDefinition, clusterName: String, gtp: Domain.GroupTopicPartition, value: Double) extends GroupPartitionMessage with MetricValue
   final case class GroupPartitionRemoveMetricMessage(definition: GaugeDefinition, clusterName: String, gtp: Domain.GroupTopicPartition) extends GroupPartitionMessage with RemoveMetric
 
+  sealed trait ClusterMessage extends Message with Metric {
+    def definition: GaugeDefinition
+    def clusterName: String
+    override def labels: List[String] =
+      List(
+        clusterName
+      )
+  }
+
+  final case class ClusterValueMessage(definition: GaugeDefinition, clusterName: String, value: Double) extends ClusterMessage with MetricValue
+
+
   val topicPartitionLabels = List("cluster_name", "topic", "partition")
 
   val LatestOffsetMetric = GaugeDefinition(
@@ -63,6 +75,8 @@ object Metrics {
   )
 
   val groupLabels = List("cluster_name", "group")
+
+  val ClusterLabels = List("cluster_name")
 
   val MaxGroupOffsetLagMetric = GaugeDefinition(
     "kafka_consumergroup_group_max_lag",
@@ -96,12 +110,19 @@ object Metrics {
     groupPartitionLabels
   )
 
+  val PollTimeMetric = GaugeDefinition(
+    "kafka_consumergroup_poll_time_seconds",
+    "Group time poll time",
+    ClusterLabels
+  )
+
   val definitions = List(
     LatestOffsetMetric,
     MaxGroupOffsetLagMetric,
     MaxGroupTimeLagMetric,
     LastGroupOffsetMetric,
     OffsetLagMetric,
-    TimeLagMetric
+    TimeLagMetric,
+    PollTimeMetric
   )
 }
