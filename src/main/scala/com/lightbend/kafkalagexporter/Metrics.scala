@@ -74,6 +74,12 @@ object Metrics {
     topicPartitionLabels
   )
 
+  val EarliestOffsetMetric = GaugeDefinition(
+    "kafka_partition_earliest_offset",
+    "Earliest offset of a partition",
+    topicPartitionLabels
+  )
+
   val groupLabels = List("cluster_name", "group")
 
   val ClusterLabels = List("cluster_name")
@@ -118,6 +124,7 @@ object Metrics {
 
   val definitions = List(
     LatestOffsetMetric,
+    EarliestOffsetMetric,
     MaxGroupOffsetLagMetric,
     MaxGroupTimeLagMetric,
     LastGroupOffsetMetric,
