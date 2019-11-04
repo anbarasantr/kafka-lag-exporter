@@ -89,6 +89,18 @@ Labels: `cluster_name, group, is_simple_consumer`
 
 The highest (maximum) lag in time for a given consumer group.
 
+**`kafka_consumergroup_group_sum_lag`**
+
+Labels: `cluster_name, group`
+
+The sum of the difference between the last produced offset and the last consumed offset of all partitions for this group.
+
+**`kafka_consumergroup_group_topic_sum_lag`**
+
+Labels: `cluster_name, group, topic`
+
+The sum of the difference between the last produced offset and the last consumed offset of all partitions in this topic for this group.
+
 **`kafka_partition_latest_offset`**
 
 Labels: `cluster_name, topic, partition`
