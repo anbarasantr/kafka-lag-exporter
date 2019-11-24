@@ -137,7 +137,6 @@ object ConsumerGroupCollector {
         }
 
         context.log.info("Collecting offsets")
-
         val startPollingTime = config.clock.instant().toEpochMilli
         val f = for {
           (groups, groupTopicPartitions) <- client.getGroups()
@@ -146,10 +145,9 @@ object ConsumerGroupCollector {
 
         f.onComplete {
           case Success(newOffsets) =>
-            val endPollingTime = config.clock.instant().toEpochMilli
-            val pollTime = (endPollingTime - startPollingTime)
-            context.self ! MetaData(pollTime)
+            val pollTimeMs = config.clock.instant().toEpochMilli - startPollingTime
             context.self ! newOffsets
+            context.self ! MetaData(pollTimeMs)
           case Failure(t) =>
             context.self ! StopWithError(t)
         }(ec)
@@ -184,8 +182,6 @@ object ConsumerGroupCollector {
 
       case (context, metaData: MetaData) =>
         context.log.debug("Received Meta data:\n{}", metaData)
-
-        context.log.info("Reporting offsets")
         reportPollTimeMetrics(config, reporter, metaData)
         Behaviors.same
 
@@ -254,6 +250,7 @@ object ConsumerGroupCollector {
 
         for((topic, topicValues) <- groupValues.groupBy(_.gtp.topic)) {
           val topicOffsetLag = topicValues.map(_.offsetLag).sum
+
           reporter ! Metrics.GroupTopicValueMessage(Metrics.SumGroupTopicOffsetLagMetric, config.cluster.name, group, topic, topicOffsetLag)
         }
       }
@@ -310,6 +307,6 @@ object ConsumerGroupCollector {
                                      reporter: ActorRef[MetricsSink.Message],
                                      metaData: MetaData
                                    ): Unit = {
-  reporter ! Metrics.ClusterValueMessage(Metrics.PollTimeMetric, config.cluster.name, metaData.pollTime)
+    reporter ! Metrics.ClusterValueMessage(Metrics.PollTimeMetric, config.cluster.name, metaData.pollTime)
   }
 }
